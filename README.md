@@ -50,6 +50,8 @@ machine, where the 1D-CNN scored 86.6% overall instead of 85.7% (small differenc
 metrics.py                  shared: EER, results logging, split loader (frozen)
 split.txt                   shared: train/test rule (frozen)
 ae_models.py                Person C: autoencoders + UserDetector used by the demo
+task1_model.py              Person A: 1D-CNN + Identifier used by the demo
+scripts/                    train_demo_identifier.py (recreates models/task1_demo_cnn.pt)
 data/                       CMU dataset (CSV)
 notebooks/
   task1_identification.ipynb      Person A: EDA, LR, SVM, RF, XGBoost, MLP, 1D-CNN, BiLSTM
@@ -57,10 +59,11 @@ notebooks/
   task2_deep_task3_drift.ipynb    Person C: dense/LSTM autoencoders, session drift
 results.csv                 all results from the three notebooks
 results_task2_classical_per_user.csv   Person B: per-user EER
+models/task1_demo_cnn.pt               Person A: 1D-CNN for the demo
 models/task2_best_classical.joblib     Person B: kNN detector + per-user thresholds
 artifacts/                  Person C: 51 saved LSTM-AE detectors + per-user EER tables
 report/figures/             Person C: figures for the report
-app/                        Streamlit demo (app.py shell + tab_c.py)
+app/                        Streamlit demo: app.py + one tab per person (tab_a, tab_b, tab_c) + common.py
 docs/                       project plan and Person B / C handoff notes
 experiments/                extra Task 1 experiment (see above)
 ```
@@ -73,7 +76,21 @@ pip install -r requirements.txt
 
 - **Notebooks:** open from `notebooks/`; each reads `../data`, `../metrics.py`, `../split.txt` and writes its own rows
   to `../results.csv`. Re-running a notebook replaces only that notebook's rows.
-- **Demo:** from the repo root, `streamlit run app/app.py`. Person C's tab is live. Person A's and B's tabs are
-  placeholders. C's tab also runs alone with `streamlit run app/tab_c.py`.
-- Person A's saved model (`models/task1_best_classical.joblib`, Random Forest) is not committed: it is about 780 MB,
-  over GitHub's 100 MB file limit. Run the Task 1 notebook to recreate it.
+- **Demo:** from the repo root, `streamlit run app/app.py`. Nothing is retrained when the app starts; it loads the
+  saved models.
+
+## Demo
+
+| Tab | What you can do | Model |
+|---|---|---|
+| A: Identification | Pick any test sample (or a random one): predicted user, confidence, top-5 guesses, typing-rhythm timeline. Model comparison and accuracy per test session. | 1D-CNN, `models/task1_demo_cnn.pt` (86.1% on sessions 5-8) |
+| B: Classical auth | Claim an identity, then type as the real user or an impostor: accept / reject, with an acceptance-limit slider and live false-accept / false-reject rates. All 12 detectors vs the paper. | kNN, scaled Manhattan, `models/task2_best_classical.joblib` |
+| C: Deep auth + drift | Same login test with the LSTM autoencoder, plus which keystrokes looked unusual. Deep vs classical comparison, and session-drift charts. | LSTM autoencoder per user, `artifacts/lstm_ae/` |
+
+Code: `app/app.py` (shell), `app/tab_a.py`, `app/tab_b.py`, `app/tab_c.py`, shared helpers in `app/common.py`.
+
+Person A's notebook saves a Random Forest (`models/task1_best_classical.joblib`), but it is about 780 MB, over
+GitHub's 100 MB file limit, so it is not committed. The demo uses A's best model instead, the 1D-CNN (1.5 MB),
+retrained with the notebook's exact split, architecture and recipe by `python scripts/train_demo_identifier.py`
+(about 3 min on CPU). It scores 86.1% on sessions 5-8 vs 85.7% in the notebook run; small differences between runs
+and library versions are normal for neural networks.

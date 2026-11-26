@@ -1,245 +1,187 @@
-"""Person C's Streamlit tab: deep keystroke authentication demo + session-drift analysis.
+"""Person C's tab: Task 2 (deep authentication) and Task 3 (session drift).
 
-Standalone:  streamlit run app/tab_c.py
-Hosted:      import tab_c; tab_c.render()      (e.g. inside `with tab_c_container:` in the shared app.py)
-
-Needs, produced by notebooks/task2_deep_task3_drift.ipynb:
-  artifacts/lstm_ae/user_<id>.pt, artifacts/task2_deep_per_user_eer.csv, artifacts/task3_drift_per_user_eer.csv,
-  report/figures/*.png.  Nothing is retrained here: models are loaded and scored on demand.
+Detector: C's per-user LSTM autoencoder (artifacts/lstm_ae/user_<id>.pt), trained only on that user's sessions 1-4.
+A sample the autoencoder cannot reconstruct well is flagged as an impostor.
 """
 import os
-import sys
 
-import matplotlib.pyplot as plt
+import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
 import torch
 
+from common import (BLUE, LABEL_INK, ORANGE, ROOT, claim_and_sample, eer, key_labels, load_data, load_results, pct,
+                    protocol_sets, rhythm_chart, score_hist, show_chart, show_table, user_label)
+import ae_models as A
 
-def _find_root():
-    d = os.path.dirname(os.path.abspath(__file__))
-    for _ in range(4):                      # works from repo root or from app/
-        if os.path.exists(os.path.join(d, "metrics.py")):
-            return d
-        d = os.path.dirname(d)
-    raise FileNotFoundError("Could not find metrics.py above tab_c.py; keep tab_c.py inside the repo.")
+ART = os.path.join(ROOT, "artifacts")
 
 
-ROOT = _find_root()
-sys.path.insert(0, ROOT)
-from metrics import load_split          # noqa: E402  (shared contract file)
-import ae_models as A                   # noqa: E402
-
-CFG = load_split(os.path.join(ROOT, "split.txt"))
-DATA = os.environ.get("KD_DATA", os.path.join(ROOT, "data", "DSL-StrongPasswordData.csv"))
-ART = os.environ.get("KD_ARTIFACTS", os.path.join(ROOT, "artifacts"))
-FIG = os.environ.get("KD_FIGURES", os.path.join(ROOT, "report", "figures"))
-KEYS = [".", "t", "i", "e", "5", "Shift+r", "o", "a", "n", "l", "Return"]   # password .tie5Roanl
+@st.cache_resource
+def _detector(user):
+    return A.UserDetector.load(os.path.join(ART, "lstm_ae", f"user_{user}.pt"))
 
 
-# ----------------------------------------------------------------------------- data / models
-@st.cache_data(show_spinner=False)
-def load_data():
-    df = pd.read_csv(DATA).sort_values(["subject", "sessionIndex", "rep"]).reset_index(drop=True)
-    feat_cols = [c for c in df.columns if c not in ("subject", "sessionIndex", "rep")]
-    return df, feat_cols
+def _saved_users():
+    d = os.path.join(ART, "lstm_ae")
+    return sorted(int(f[5:-3]) for f in os.listdir(d) if f.startswith("user_") and f.endswith(".pt"))
 
 
-@st.cache_resource(show_spinner=False)
-def get_detector(u):
-    return A.UserDetector.load(os.path.join(ART, "lstm_ae", f"user_{u}.pt"))
+@st.cache_data
+def _user_errors(user):
+    df, feat_cols = load_data()
+    _, genuine, impostors = protocol_sets(df, feat_cols, user)
+    det = _detector(user)
+    return det.error(genuine), det.error(impostors)
 
 
-def genuine_test(df, fc, u):
-    """User u's genuine test reps (sessions 5-8) with their session/rep labels."""
-    g = df[(df.subject == u) & (df.sessionIndex.isin(CFG["TEST_SESSIONS"]))]
-    return g[fc].values, g[["sessionIndex", "rep"]].values
-
-
-def impostor_pool(df, fc, u):
-    """The frozen protocol's impostor set: first IMPOSTOR_PER_USER reps of IMPOSTOR_SESSION for every other user."""
-    parts = []
-    for v in sorted(df.subject.unique()):
-        if v == u:
-            continue
-        g = df[(df.subject == v) & (df.sessionIndex == CFG["IMPOSTOR_SESSION"])].head(CFG["IMPOSTOR_PER_USER"])
-        parts.append(g)
-    return pd.concat(parts)
-
-
-@st.cache_data(show_spinner=False)
-def user_errors(u):
-    """Reconstruction errors for the user's 200 genuine test reps and 250 impostor reps (for live FAR/FRR)."""
-    df, fc = load_data()
-    det = get_detector(u)
-    Xg, _ = genuine_test(df, fc, u)
-    Xi = impostor_pool(df, fc, u)[fc].values
-    return det.error(Xg), det.error(Xi), det.threshold
-
-
-def per_key_error(det, x):
-    """Squared reconstruction error summed per keystroke (11 values): where did this sample look unlike the user?"""
+@torch.no_grad()
+def _per_key_error(det, x):
     S = A.to_seq((np.atleast_2d(x) - det.mean) / det.scale)
-    with torch.no_grad():
-        out = det.model(torch.from_numpy(S)).numpy()
-    return (((out - S) ** 2) * A.MASK).sum(axis=2)[0]
+    rec = det.model(torch.from_numpy(S)).numpy()
+    err = ((rec - S) ** 2) * A.MASK
+    return (err.sum(2) / A.MASK.sum(1))[0]
 
 
-# ----------------------------------------------------------------------------- plots
-def press_release(x):
-    """Reconstruct key press/release times (s) from H and DD features."""
-    press = np.r_[0.0, np.cumsum(x[A.DD_IDX])]
-    return press, press + x[A.H_IDX]
-
-
-def plot_rhythm(x, typical, label):
-    fig, ax = plt.subplots(figsize=(9, 3.8))
-    p, r = press_release(typical)
-    for k in range(11):
-        ax.barh(k, r[k] - p[k], left=p[k], fill=False, edgecolor="k", ls="--", lw=1,
-                label="user's typical rhythm" if k == 0 else None)
-    p, r = press_release(x)
-    for k in range(11):
-        ax.barh(k, r[k] - p[k], left=p[k], color="tab:orange", alpha=.75, height=.55, label=label if k == 0 else None)
-    ax.set_yticks(range(11)); ax.set_yticklabels(KEYS); ax.invert_yaxis()
-    ax.set_xlabel("time since first key press (s)"); ax.set_title("Typing rhythm: when each key is held down")
-    ax.legend(loc="lower left", fontsize=8)
-    fig.tight_layout()
-    return fig
-
-
-def plot_key_error(err):
-    fig, ax = plt.subplots(figsize=(9, 2.6))
-    ax.bar(KEYS, err, color="tab:red", alpha=.8)
-    ax.set_ylabel("error"); ax.set_title("Which keystrokes looked least like this user")
-    ax.tick_params(axis="x", rotation=30)
-    fig.tight_layout()
-    return fig
-
-
-# ----------------------------------------------------------------------------- UI sections
-def _image(path, caption=None):
-    """st.image that works on old and new Streamlit (use_container_width was replaced by width='stretch')."""
-    try:
-        st.image(path, caption=caption, width="stretch")
-    except TypeError:
-        st.image(path, caption=caption, use_container_width=True)
-
-
-def _missing(what):
-    st.warning(f"{what} not found. Run notebooks/task2_deep_task3_drift.ipynb first, then reload.")
-
-
-def verify_section():
-    if not os.path.isdir(os.path.join(ART, "lstm_ae")):
-        return _missing("Saved models (artifacts/lstm_ae)")
-    df, fc = load_data()
-    saved = sorted(int(f[5:-3]) for f in os.listdir(os.path.join(ART, "lstm_ae")) if f.startswith("user_") and f.endswith(".pt"))
-    if not saved:
-        return _missing("Saved models")
-
-    st.markdown("Pick who the person **claims** to be, then feed in a typing sample. The claimed user's own autoencoder "
-                "tries to reconstruct it; a large reconstruction error means *this is not how that person types*.")
-    c1, c2 = st.columns(2)
-    claimed = c1.selectbox("Claimed identity (subject)", saved, key="tabc_claimed")
-    source = c2.radio("Sample typed by", ["The real user (genuine)", "Someone else (impostor)"], horizontal=True, key="tabc_source")
-
-    det = get_detector(claimed)
-    Xg, meta = genuine_test(df, fc, claimed)
-    train_typical = df[(df.subject == claimed) & df.sessionIndex.isin(CFG["TRAIN_SESSIONS"])][fc].values.mean(0)
-
-    if source.startswith("The real"):
-        i = st.slider("Genuine sample (sessions 5-8)", 1, len(Xg), 1, key="tabc_gi") - 1
-        x, desc = Xg[i], f"genuine, session {meta[i][0]}, rep {meta[i][1]}"
-    else:
-        pool = impostor_pool(df, fc, claimed)
-        who = st.selectbox("Impostor (subject)", sorted(pool.subject.unique()), key="tabc_imp")
-        sub = pool[pool.subject == who]
-        j = st.slider("Impostor sample", 1, len(sub), 1, key="tabc_ii") - 1
-        x, desc = sub[fc].values[j], f"impostor, subject {who}, session {sub.sessionIndex.iloc[j]}, rep {sub.rep.iloc[j]}"
-
-    g_err, i_err, base_thr = user_errors(claimed)
-    mult = st.slider("Strictness: threshold multiplier (lower = stricter)", 0.3, 3.0, 1.0, 0.05, key="tabc_mult",
-                     help="1.0 is the threshold learned from the user's own training data. Lower rejects more impostors but also more genuine attempts.")
-    thr = base_thr * mult
+def _verify_section(df, feat_cols):
+    st.subheader("Try a login")
+    claimed, row, is_genuine = claim_and_sample("c", df, _saved_users())
+    det = _detector(claimed)
+    x = row[feat_cols].values.astype(np.float32)
     err = float(det.error(x)[0])
+    gen, imp = _user_errors(claimed)
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Reconstruction error", f"{err:.2f}")
-    m2.metric("Threshold", f"{thr:.2f}")
-    m3.metric("Error / threshold", f"{err / thr:.2f}")
-    if err <= thr:
-        st.success(f"ACCEPTED: this sample is consistent with subject {claimed}'s typing.  ({desc})")
+    factor = st.select_slider("Strictness: acceptance limit as a multiple of the trained threshold "
+                              "(lower = stricter)", options=[0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 4.0], value=1.0,
+                              key=f"c_factor_{claimed}")
+    cut = det.threshold * factor
+    accepted = err <= cut
+
+    if accepted and is_genuine:
+        st.success(f"✅ Accepted: the real {user_label(claimed)} is let in.")
+    elif not accepted and not is_genuine:
+        st.success(f"🛡️ Impostor caught: {user_label(int(row.subject))} pretending to be {user_label(claimed)} is rejected.")
+    elif accepted:
+        st.error(f"⚠️ False accept: impostor {user_label(int(row.subject))} got in as {user_label(claimed)}.")
     else:
-        st.error(f"IMPOSTOR ALERT: this does not look like subject {claimed}'s typing.  ({desc})")
+        st.warning(f"⛔ False reject: the real {user_label(claimed)} was locked out.")
 
-    left, right = st.columns([3, 2])
-    left.pyplot(plot_rhythm(x, train_typical, "this sample"))
-    right.pyplot(plot_key_error(per_key_error(det, x)))
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Reconstruction error", f"{err:.2f}")
+    m2.metric("Acceptance limit", f"{cut:.2f}")
+    m3.metric("False accepts at this limit", pct(float((imp <= cut).mean())),
+              help="Share of this user's 250 impostor attempts let in")
+    m4.metric("False rejects at this limit", pct(float((gen > cut).mean())),
+              help="Share of this user's 200 real test attempts blocked")
+    st.caption(f"{user_label(claimed)}'s EER with the LSTM autoencoder: {pct(eer(-gen, -imp))}. "
+               "The trained threshold is the 95th percentile of errors on held-out training data (session 4).")
 
-    st.markdown("#### What this threshold costs, for this user")
-    far, frr = float(np.mean(i_err <= thr)), float(np.mean(g_err > thr))
-    a, b = st.columns(2)
-    a.metric("False accept rate (impostors let in)", f"{far:.1%}")
-    b.metric("False reject rate (real user blocked)", f"{frr:.1%}")
-    ms = np.round(np.arange(0.3, 3.01, 0.1), 2)
-    curve = pd.DataFrame({"False accept": [np.mean(i_err <= base_thr * m) for m in ms],
-                          "False reject": [np.mean(g_err > base_thr * m) for m in ms]}, index=pd.Index(ms, name="threshold multiplier"))
-    st.line_chart(curve)
-    st.caption("Measured on this user's 200 genuine test reps (sessions 5-8) and the 250 frozen impostor reps. "
-               "The point where the two lines cross is this user's EER.")
-
-
-def results_section():
-    path = os.path.join(ART, "task2_deep_per_user_eer.csv")
-    if not os.path.exists(path):
-        return _missing("Task 2 results")
-    d = pd.read_csv(path)
-    s = (d.groupby("model").eer.agg(["mean", "median", "std"]) * 100).round(2)
-    s.columns = ["mean EER %", "median EER %", "std EER %"]
-    st.markdown("**Equal error rate across all 51 users** (each user has their own detector; lower is better). "
-                "The paper's published scaled-Manhattan result is 9.6%.")
-    st.dataframe(s.loc[[m for m in ("ref_manhattan_scaled", "dense_ae", "lstm_ae") if m in s.index]])
-    st.markdown("The LSTM autoencoder does **not** beat the simple scaled-Manhattan detector: with only 11 keystrokes and 200 "
-                "training samples per user, there is little sequential structure for the LSTM to exploit.")
-    img = os.path.join(FIG, "task2_deep_results.png")
-    if os.path.exists(img):
-        _image(img)
+    c1, c2 = st.columns(2)
+    with c1:
+        show_chart(score_hist(np.log10(gen), np.log10(imp), float(np.log10(cut)), float(np.log10(err)),
+                              "log10 reconstruction error (lower = more like the user)", "Limit")
+                   .properties(title=f"{user_label(claimed)}: real attempts vs impostors"))
+    with c2:
+        pk = pd.DataFrame({"key": key_labels(feat_cols), "order": range(11), "error": _per_key_error(det, x)})
+        bars = alt.Chart(pk, title="Which keys looked unusual? (error per keystroke)").mark_bar(
+            color=BLUE, cornerRadiusEnd=4).encode(
+            x=alt.X("key:N", sort=alt.SortField("order"), title=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("error:Q", title="reconstruction error"),
+            tooltip=[alt.Tooltip("key:N", title="Key"), alt.Tooltip("error:Q", title="Error", format=".3f")])
+        show_chart(bars.properties(height=260))
+    show_chart(rhythm_chart(row, feat_cols, title=f"Typing rhythm: {user_label(int(row.subject))}, "
+                                                   f"session {int(row.sessionIndex)}, rep {int(row.rep)}"))
 
 
-def drift_section():
-    path = os.path.join(ART, "task3_drift_per_user_eer.csv")
-    if not os.path.exists(path):
-        return _missing("Drift results")
-    d = pd.read_csv(path)
-    st.markdown("**Does typing change over time?** Each detector is trained on sessions 1-2 only and tested on every later session. "
-                "*Static* = never updated. *Sliding* = retrained on the two most recent sessions before each test.")
-    t = (d.groupby(["model", "mode", "session"]).eer.mean().unstack("session") * 100).round(1)
-    st.dataframe(t.rename_axis(columns="EER % by session"))
-    line = d.groupby(["model", "mode", "session"]).eer.mean().unstack(["model", "mode"])
-    line.columns = [f"{m} / {mode}" for m, mode in line.columns]
-    st.line_chart(line)
-    for name, cap in (("task3_feature_drift.png", "People type faster and hold keys differently as sessions pass (relative to their own session 1)."),
-                      ("task3_drift_curves.png", "Static detectors degrade with time; retraining on recent sessions recovers it. "
-                                                 "Caveat: impostor reps are always from session 1, so the sliding curve can look better than it truly is.")):
-        p = os.path.join(FIG, name)
-        if os.path.exists(p):
-            _image(p, cap)
+def _results_section():
+    st.subheader("Deep vs classical detectors")
+    res = load_results()
+    pick = [("kNN (scaled Manhattan)", "task2_classical", "Classical (B)"),
+            ("Isolation Forest", "task2_classical", "Classical (B)"),
+            ("One-class SVM", "task2_classical", "Classical (B)"),
+            ("Manhattan (scaled)", "task2_classical", "Classical (B)"),
+            ("dense_ae", "task2_deep", "Deep (C)"), ("lstm_ae", "task2_deep", "Deep (C)")]
+    names = {"dense_ae": "Dense autoencoder", "lstm_ae": "LSTM autoencoder"}
+    rows = []
+    for model, task, family in pick:
+        v = res[(res.model == model) & (res.task == task) & (res.metric == "eer_mean")].value
+        rows.append(dict(model=names.get(model, model), family=family, eer=float(v.iloc[0])))
+    t = pd.DataFrame(rows).sort_values("eer")
+    order = t.model.tolist()
+    bars = alt.Chart(t, title="Mean EER over 51 users (lower is better)").mark_bar(cornerRadiusEnd=4).encode(
+        x=alt.X("eer:Q", title="equal error rate", axis=alt.Axis(format="%")),
+        y=alt.Y("model:N", sort=order, title=None, axis=alt.Axis(labelLimit=260, labelOverlap=False)),
+        color=alt.Color("family:N", title=None, scale=alt.Scale(domain=["Classical (B)", "Deep (C)"], range=[BLUE, ORANGE]),
+                        legend=alt.Legend(orient="top")),
+        tooltip=[alt.Tooltip("model:N", title="Detector"), alt.Tooltip("family:N", title="Family"),
+                 alt.Tooltip("eer:Q", title="EER", format=".1%")])
+    labels = alt.Chart(t).mark_text(align="left", dx=4, fontSize=11, color=LABEL_INK).encode(
+        x="eer:Q", y=alt.Y("model:N", sort=order), text=alt.Text("eer:Q", format=".1%"))
+    show_chart((bars + labels).properties(height=300))
+    st.caption("With only 200 training samples per user, simple distance-based detectors beat the deep models. "
+               "The dense autoencoder is statistically tied with scaled Manhattan; the LSTM autoencoder is worse.")
+
+
+def _drift_section(df, feat_cols):
+    st.subheader("Task 3 · Does typing change over time?")
+    DD = [c for c in feat_cols if c.startswith("DD.")]
+    tt = df.assign(total=df[DD].sum(1) + df["H.Return"]).groupby(["subject", "sessionIndex"]).total.mean().unstack()
+    rel = tt.div(tt[1], axis=0).mean().reset_index()
+    rel.columns = ["session", "relative"]
+
+    res = load_results()
+    d = res[(res.task == "task3_drift") & res.metric.str.startswith("eer_mean_s")].copy()
+    d["session"] = d.metric.str[-1].astype(int)
+    d["detector"] = d.model.str.replace("_sliding", "").str.replace("_static", "").map(
+        {"lstm_ae": "LSTM autoencoder", "ref_manhattan_scaled": "Scaled Manhattan"})
+    d["mode"] = np.where(d.model.str.endswith("sliding"), "retrained each session", "trained once")
+    d["series"] = d.detector + ", " + d["mode"]
+    series = [f"{m}, {mode}" for m in ("Scaled Manhattan", "LSTM autoencoder")
+              for mode in ("trained once", "retrained each session")]
+
+    c1, c2 = st.columns(2)
+    with c1:
+        line = alt.Chart(rel, title="Typing time relative to each user's session 1").mark_line(
+            color=BLUE, strokeWidth=2, point=alt.OverlayMarkDef(size=80, color=BLUE)).encode(
+            x=alt.X("session:O", title="session", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("relative:Q", title="typing time (session 1 = 100%)", axis=alt.Axis(format="%"),
+                    scale=alt.Scale(zero=False)),
+            tooltip=[alt.Tooltip("session:O", title="Session"), alt.Tooltip("relative:Q", title="Relative time", format=".1%")])
+        show_chart(line.properties(height=300))
+        st.caption(f"By session 8 people type the password {pct(1 - rel.relative.iloc[-1], 0)} faster than in session 1.")
+    with c2:
+        lines = alt.Chart(d, title="EER on each later session").mark_line(
+            strokeWidth=2, point=alt.OverlayMarkDef(size=70)).encode(
+            x=alt.X("session:O", title="test session", axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("value:Q", title="mean EER", axis=alt.Axis(format="%"), scale=alt.Scale(zero=False)),
+            color=alt.Color("series:N", title=None, scale=alt.Scale(domain=series, range=[BLUE, BLUE, ORANGE, ORANGE]),
+                            legend=alt.Legend(orient="bottom", columns=2, symbolType="stroke", labelLimit=300)),
+            strokeDash=alt.StrokeDash("series:N", title=None, scale=alt.Scale(
+                domain=series, range=[[6, 4], [1, 0], [6, 4], [1, 0]])),
+            tooltip=[alt.Tooltip("detector:N", title="Detector"), alt.Tooltip("mode:N", title="Mode"),
+                     alt.Tooltip("session:O", title="Session"), alt.Tooltip("value:Q", title="EER", format=".1%")])
+        show_chart(lines.properties(height=380))
+        st.caption("Trained once = trained on sessions 1-2 and never updated (dashed): it gets worse as typing drifts. "
+                   "Retrained = retrained on the 2 most recent sessions before each test (solid): the error goes down instead.")
+    with st.expander("Table view"):
+        tv = d.pivot_table(index=["detector", "mode"], columns="session", values="value").reset_index()
+        tv["mode"] = tv["mode"].str.capitalize()
+        for s in range(3, 9):
+            tv[s] = tv[s].map(pct)
+        show_table(tv.rename(columns={"detector": "Detector", "mode": "Mode", **{s: f"Session {s}" for s in range(3, 9)}}))
 
 
 def render():
-    """Entry point used by the shared app.py shell."""
-    st.header("Deep authentication and session drift")
-    t1, t2, t3 = st.tabs(["Verify a typing sample", "Model results (51 users)", "Session drift"])
-    with t1:
-        verify_section()
-    with t2:
-        results_section()
-    with t3:
-        drift_section()
-
-
-if __name__ == "__main__":
-    st.set_page_config(page_title="Keystroke authentication (Person C)", layout="wide")
-    render()
+    st.header("Task 2/3 · Deep authentication and session drift")
+    st.markdown("Each user gets their own **LSTM autoencoder**, trained only on their sessions 1-4 to rebuild their "
+                "typing. If it cannot rebuild a sample well (high reconstruction error), the sample is probably an impostor.")
+    if not os.path.isdir(os.path.join(ART, "lstm_ae")):
+        st.warning("Saved models not found: run notebooks/task2_deep_task3_drift.ipynb to create artifacts/lstm_ae/.")
+        return
+    df, feat_cols = load_data()
+    _verify_section(df, feat_cols)
+    st.divider()
+    _results_section()
+    st.divider()
+    _drift_section(df, feat_cols)
