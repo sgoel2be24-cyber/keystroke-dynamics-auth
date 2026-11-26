@@ -1,0 +1,23 @@
+# Frozen shared contract. Do not edit after the team agrees on it.
+# Read with metrics.load_split(). Keep comments on their own lines (inline comments break parsing).
+
+# Train / test split by session (Task 2 and Task 3: the paper's protocol)
+TRAIN_SESSIONS=1,2,3,4
+TEST_SESSIONS=5,6,7,8
+
+# Task 1 (identification) only: train on 6 sessions (300 reps/user), test on the last 2 (100 reps/user)
+# Task 1 is not compared against the paper, so it uses more (and more recent) training data.
+# The sessions 1-4 / 5-8 run is kept in experiments/task1_split_comparison/.
+TASK1_TRAIN_SESSIONS=1,2,3,4,5,8
+TASK1_TEST_SESSIONS=6,7
+
+# Task 2 protocol (Killourhy & Maxion, DSN-2009)
+# Each user: train on their 200 reps from sessions 1-4, test genuine on their 200 reps from sessions 5-8
+GENUINE_TRAIN_N=200
+GENUINE_TEST_N=200
+# Impostors: first IMPOSTOR_PER_USER reps of each of the other 50 users, taken from IMPOSTOR_SESSION
+# Session 1 = the paper's protocol (needed to compare against the published EER table)
+IMPOSTOR_PER_USER=5
+IMPOSTOR_SESSION=1
+
+SEED=42

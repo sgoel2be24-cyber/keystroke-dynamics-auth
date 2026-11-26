@@ -4,3 +4,5 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 venv/
+# ~780 MB Random Forest saved by the Task 1 notebook: over GitHub's 100 MB limit
+models/task1_best_classical.joblib

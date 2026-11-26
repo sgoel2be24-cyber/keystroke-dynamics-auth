@@ -10,7 +10,7 @@ down-down times (DD) and up-down times (UD).
 
 | Task | Owner | Best model | Result |
 |---|---|---|---|
-| 1. Identification (who typed this? 51 classes) | A | 1D-CNN | **85.7%** accuracy |
+| 1. Identification (who typed this? 51 classes) | A | 1D-CNN | **89.5%** accuracy (train sessions 1-6, test 7-8) |
 | 2. Authentication, classical (is this really you?) | B | kNN, scaled Manhattan | **7.8%** EER (paper's best: 9.6%) |
 | 2. Authentication, deep | C | Dense autoencoder | 10.0% EER (LSTM autoencoder: 11.5%) |
 | 3. Session drift | C | Retraining on recent sessions | EER 9.3% → 6.5% (static model: 9.3% → 13.1%) |
@@ -23,26 +23,32 @@ All numbers are in [`results.csv`](results.csv) (`model, task, metric, value`). 
 
 ## Split (frozen in [`split.txt`](split.txt))
 
-- **Train:** sessions 1-4 (200 reps per user). **Test:** sessions 5-8 (200 reps per user).
+- **Task 1 (identification):** train on sessions 1-6 (300 reps per user), test on sessions 7-8 (100 reps per user).
+  Keys `TASK1_TRAIN_SESSIONS` / `TASK1_TEST_SESSIONS`. Task 1 is not compared with the paper, so it uses more (and more
+  recent) training data.
+- **Tasks 2 and 3 (authentication, drift):** the paper's protocol: train on sessions 1-4 (200 reps), test on 5-8 (200 reps).
 - **Task 2 impostors:** first 5 reps of session 1 from each of the other 50 users (250 per user), as in the paper.
 - Splitting by session in time order (not at random) avoids leakage between near-identical samples from the same day.
 
-### Extra experiment: more training sessions (Task 1 only)
+### Task 1 split comparison
 
-[`experiments/task1_more_training_sessions/`](experiments/task1_more_training_sessions/) reruns A's notebook unchanged
-with train = sessions 1-6 and test = sessions 7-8. This is an extra finding, not the main result.
+[`experiments/task1_split_comparison/`](experiments/task1_split_comparison/) holds A's notebook run on two other splits.
 
-| Model | Train 1-4, test 5-8 (main) | Train 1-4, scored on 7-8 only | Train 1-6, test 7-8 |
+| Model | Train 1-4, test 5-8 (paper split) | **Train 1-6, test 7-8 (main)** | Train 1-5 + 8, test 6-7 |
 |---|---|---|---|
-| 1D-CNN | 85.7% | 82.8% | **89.8%** |
-| MLP | 84.2% | 79.6% | 88.6% |
-| Random Forest | 81.8% | 76.6% | 87.0% |
-| XGBoost | 80.5% | 75.4% | 86.8% |
-| BiLSTM | 74.9% | 70.8% | 84.5% |
+| 1D-CNN | 85.7% | **89.5%** | 94.7% |
+| MLP | 84.2% | 88.8% | 93.9% |
+| XGBoost | 80.5% | 86.8% | 93.2% |
+| Random Forest | 81.8% | 87.0% | 92.9% |
+| BiLSTM | 74.9% | 84.5% | 90.9% |
+| SVM (RBF) | 76.2% | 81.4% | 87.9% |
+| Logistic Regression | 69.1% | 75.8% | 81.6% |
 
-On the same test sessions, two more (and more recent) training sessions add 7-14 points. This agrees with the drift
-results: recent typing matters. The "scored on 7-8 only" column comes from a rerun of the main split on a different
-machine, where the 1D-CNN scored 86.6% overall instead of 85.7% (small differences across library versions are normal).
+- The closer the training sessions are in time to the test sessions, the higher the accuracy. This agrees with the drift
+  results (Task 3).
+- On the same test sessions (7-8), the paper-split 1D-CNN scores 82.8%, so two more recent training sessions add about 7 points.
+- The 6-7 split is the best case but not realistic: it trains on session 8, which comes *after* the test sessions.
+  The main split only predicts later typing from earlier typing, as a real system must.
 
 ## Repository layout
 
@@ -65,7 +71,7 @@ artifacts/                  Person C: 51 saved LSTM-AE detectors + per-user EER 
 report/figures/             Person C: figures for the report
 app/                        Streamlit demo: app.py + one tab per person (tab_a, tab_b, tab_c) + common.py
 docs/                       project plan and Person B / C handoff notes
-experiments/                extra Task 1 experiment (see above)
+experiments/                Task 1 split comparison (see above)
 ```
 
 ## Running
@@ -83,7 +89,7 @@ pip install -r requirements.txt
 
 | Tab | What you can do | Model |
 |---|---|---|
-| A: Identification | Pick any test sample (or a random one): predicted user, confidence, top-5 guesses, typing-rhythm timeline. Model comparison and accuracy per test session. | 1D-CNN, `models/task1_demo_cnn.pt` (86.1% on sessions 5-8) |
+| A: Identification | Pick any test sample (or a random one): predicted user, confidence, top-5 guesses, typing-rhythm timeline. Model comparison and accuracy per test session. | 1D-CNN, `models/task1_demo_cnn.pt` (89.5% on sessions 7-8) |
 | B: Classical auth | Claim an identity, then type as the real user or an impostor: accept / reject, with an acceptance-limit slider and live false-accept / false-reject rates. All 12 detectors vs the paper. | kNN, scaled Manhattan, `models/task2_best_classical.joblib` |
 | C: Deep auth + drift | Same login test with the LSTM autoencoder, plus which keystrokes looked unusual. Deep vs classical comparison, and session-drift charts. | LSTM autoencoder per user, `artifacts/lstm_ae/` |
 
@@ -92,5 +98,4 @@ Code: `app/app.py` (shell), `app/tab_a.py`, `app/tab_b.py`, `app/tab_c.py`, shar
 Person A's notebook saves a Random Forest (`models/task1_best_classical.joblib`), but it is about 780 MB, over
 GitHub's 100 MB file limit, so it is not committed. The demo uses A's best model instead, the 1D-CNN (1.5 MB),
 retrained with the notebook's exact split, architecture and recipe by `python scripts/train_demo_identifier.py`
-(about 3 min on CPU). It scores 86.1% on sessions 5-8 vs 85.7% in the notebook run; small differences between runs
-and library versions are normal for neural networks.
+(about 4 min on CPU). It scores 89.5% on sessions 7-8, the same as the notebook.
