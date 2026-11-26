@@ -1,0 +1,156 @@
+model,task,metric,value
+LogisticRegression,task1_identification,accuracy,0.691275
+LogisticRegression,task1_identification,macro_f1,0.685442
+SVM-RBF,task1_identification,accuracy,0.761569
+SVM-RBF,task1_identification,macro_f1,0.757283
+RandomForest,task1_identification,accuracy,0.818333
+RandomForest,task1_identification,macro_f1,0.81439
+XGBoost,task1_identification,accuracy,0.805098
+XGBoost,task1_identification,macro_f1,0.802833
+MLP,task1_identification,accuracy,0.841961
+MLP,task1_identification,macro_f1,0.838559
+1D-CNN,task1_identification,accuracy,0.857059
+1D-CNN,task1_identification,macro_f1,0.853406
+BiLSTM,task1_identification,accuracy,0.749216
+BiLSTM,task1_identification,macro_f1,0.745032
+LogReg (+derived),task1_identification,accuracy,0.701275
+LogReg (+derived),task1_identification,macro_f1,0.697883
+RandomForest (+derived),task1_identification,accuracy,0.795882
+RandomForest (+derived),task1_identification,macro_f1,0.791847
+Euclidean,task2_classical,eer_mean,0.170794
+Euclidean,task2_classical,eer_std,0.094237
+Euclidean,task2_classical,zero_miss_far_mean,0.874902
+Euclidean (normed),task2_classical,eer_mean,0.214824
+Euclidean (normed),task2_classical,eer_std,0.118341
+Euclidean (normed),task2_classical,zero_miss_far_mean,0.911471
+Manhattan,task2_classical,eer_mean,0.152814
+Manhattan,task2_classical,eer_std,0.09212
+Manhattan,task2_classical,zero_miss_far_mean,0.842843
+Manhattan (filtered),task2_classical,eer_mean,0.127667
+Manhattan (filtered),task2_classical,eer_std,0.079527
+Manhattan (filtered),task2_classical,zero_miss_far_mean,0.696765
+Manhattan (scaled),task2_classical,eer_mean,0.095294
+Manhattan (scaled),task2_classical,eer_std,0.069689
+Manhattan (scaled),task2_classical,zero_miss_far_mean,0.600784
+Mahalanobis,task2_classical,eer_mean,0.109755
+Mahalanobis,task2_classical,eer_std,0.063963
+Mahalanobis,task2_classical,zero_miss_far_mean,0.481667
+Nearest neighbor (Mahalanobis),task2_classical,eer_mean,0.099598
+Nearest neighbor (Mahalanobis),task2_classical,eer_std,0.063467
+Nearest neighbor (Mahalanobis),task2_classical,zero_miss_far_mean,0.467549
+Outlier count (z-score),task2_classical,eer_mean,0.101333
+Outlier count (z-score),task2_classical,eer_std,0.076615
+Outlier count (z-score),task2_classical,zero_miss_far_mean,0.781961
+One-class SVM,task2_classical,eer_mean,0.091206
+One-class SVM,task2_classical,eer_std,0.062792
+One-class SVM,task2_classical,zero_miss_far_mean,0.442059
+k-means,task2_classical,eer_mean,0.155902
+k-means,task2_classical,eer_std,0.073061
+k-means,task2_classical,zero_miss_far_mean,0.696765
+Isolation Forest,task2_classical,eer_mean,0.08099
+Isolation Forest,task2_classical,eer_std,0.063464
+Isolation Forest,task2_classical,zero_miss_far_mean,0.467549
+kNN (scaled Manhattan),task2_classical,eer_mean,0.077922
+kNN (scaled Manhattan),task2_classical,eer_std,0.05164
+kNN (scaled Manhattan),task2_classical,zero_miss_far_mean,0.35402
+Euclidean,task2_classical_practiced_impostors,eer_mean,0.248578
+Euclidean (normed),task2_classical_practiced_impostors,eer_mean,0.278343
+Manhattan,task2_classical_practiced_impostors,eer_mean,0.223245
+Manhattan (filtered),task2_classical_practiced_impostors,eer_mean,0.196275
+Manhattan (scaled),task2_classical_practiced_impostors,eer_mean,0.145578
+Mahalanobis,task2_classical_practiced_impostors,eer_mean,0.154039
+Nearest neighbor (Mahalanobis),task2_classical_practiced_impostors,eer_mean,0.149304
+Outlier count (z-score),task2_classical_practiced_impostors,eer_mean,0.160922
+One-class SVM,task2_classical_practiced_impostors,eer_mean,0.137627
+k-means,task2_classical_practiced_impostors,eer_mean,0.214314
+Isolation Forest,task2_classical_practiced_impostors,eer_mean,0.138931
+kNN (scaled Manhattan),task2_classical_practiced_impostors,eer_mean,0.123402
+Euclidean,task2_classical_by_session,eer_session5,0.166392
+Euclidean,task2_classical_by_session,eer_session6,0.16149
+Euclidean,task2_classical_by_session,eer_session7,0.16949
+Euclidean,task2_classical_by_session,eer_session8,0.168784
+Euclidean (normed),task2_classical_by_session,eer_session5,0.192
+Euclidean (normed),task2_classical_by_session,eer_session6,0.204392
+Euclidean (normed),task2_classical_by_session,eer_session7,0.214902
+Euclidean (normed),task2_classical_by_session,eer_session8,0.222275
+Manhattan,task2_classical_by_session,eer_session5,0.138
+Manhattan,task2_classical_by_session,eer_session6,0.139255
+Manhattan,task2_classical_by_session,eer_session7,0.152588
+Manhattan,task2_classical_by_session,eer_session8,0.159686
+Manhattan (filtered),task2_classical_by_session,eer_session5,0.11902
+Manhattan (filtered),task2_classical_by_session,eer_session6,0.117373
+Manhattan (filtered),task2_classical_by_session,eer_session7,0.126471
+Manhattan (filtered),task2_classical_by_session,eer_session8,0.130667
+Manhattan (scaled),task2_classical_by_session,eer_session5,0.079843
+Manhattan (scaled),task2_classical_by_session,eer_session6,0.081882
+Manhattan (scaled),task2_classical_by_session,eer_session7,0.097725
+Manhattan (scaled),task2_classical_by_session,eer_session8,0.100275
+Mahalanobis,task2_classical_by_session,eer_session5,0.098588
+Mahalanobis,task2_classical_by_session,eer_session6,0.094863
+Mahalanobis,task2_classical_by_session,eer_session7,0.112784
+Mahalanobis,task2_classical_by_session,eer_session8,0.118588
+Nearest neighbor (Mahalanobis),task2_classical_by_session,eer_session5,0.087569
+Nearest neighbor (Mahalanobis),task2_classical_by_session,eer_session6,0.086353
+Nearest neighbor (Mahalanobis),task2_classical_by_session,eer_session7,0.097647
+Nearest neighbor (Mahalanobis),task2_classical_by_session,eer_session8,0.109373
+Outlier count (z-score),task2_classical_by_session,eer_session5,0.087725
+Outlier count (z-score),task2_classical_by_session,eer_session6,0.092157
+Outlier count (z-score),task2_classical_by_session,eer_session7,0.099333
+Outlier count (z-score),task2_classical_by_session,eer_session8,0.105412
+One-class SVM,task2_classical_by_session,eer_session5,0.079961
+One-class SVM,task2_classical_by_session,eer_session6,0.079647
+One-class SVM,task2_classical_by_session,eer_session7,0.09302
+One-class SVM,task2_classical_by_session,eer_session8,0.100784
+k-means,task2_classical_by_session,eer_session5,0.163176
+k-means,task2_classical_by_session,eer_session6,0.144196
+k-means,task2_classical_by_session,eer_session7,0.153686
+k-means,task2_classical_by_session,eer_session8,0.149725
+Isolation Forest,task2_classical_by_session,eer_session5,0.06702
+Isolation Forest,task2_classical_by_session,eer_session6,0.071647
+Isolation Forest,task2_classical_by_session,eer_session7,0.079176
+Isolation Forest,task2_classical_by_session,eer_session8,0.091333
+kNN (scaled Manhattan),task2_classical_by_session,eer_session5,0.068745
+kNN (scaled Manhattan),task2_classical_by_session,eer_session6,0.071333
+kNN (scaled Manhattan),task2_classical_by_session,eer_session7,0.077098
+kNN (scaled Manhattan),task2_classical_by_session,eer_session8,0.079412
+ref_manhattan_scaled,task2_deep,eer_mean,0.095294
+ref_manhattan_scaled,task2_deep,eer_std,0.070383
+ref_manhattan_scaled,task2_deep,eer_median,0.076
+dense_ae,task2_deep,eer_mean,0.100088
+dense_ae,task2_deep,eer_std,0.063054
+dense_ae,task2_deep,eer_median,0.0935
+lstm_ae,task2_deep,eer_mean,0.115147
+lstm_ae,task2_deep,eer_std,0.065201
+lstm_ae,task2_deep,eer_median,0.106
+dense_ae,task2_deep,far_at_threshold,0.202588
+dense_ae,task2_deep,frr_at_threshold,0.082157
+lstm_ae,task2_deep,far_at_threshold,0.248627
+lstm_ae,task2_deep,frr_at_threshold,0.085294
+lstm_ae_sliding,task3_drift,eer_slope_per_session,-0.006424
+lstm_ae_sliding,task3_drift,eer_mean_s3,0.124863
+lstm_ae_sliding,task3_drift,eer_mean_s4,0.108706
+lstm_ae_sliding,task3_drift,eer_mean_s5,0.103333
+lstm_ae_sliding,task3_drift,eer_mean_s6,0.094118
+lstm_ae_sliding,task3_drift,eer_mean_s7,0.088863
+lstm_ae_sliding,task3_drift,eer_mean_s8,0.093647
+lstm_ae_static,task3_drift,eer_slope_per_session,0.001935
+lstm_ae_static,task3_drift,eer_mean_s3,0.124863
+lstm_ae_static,task3_drift,eer_mean_s4,0.128941
+lstm_ae_static,task3_drift,eer_mean_s5,0.129569
+lstm_ae_static,task3_drift,eer_mean_s6,0.123647
+lstm_ae_static,task3_drift,eer_mean_s7,0.134275
+lstm_ae_static,task3_drift,eer_mean_s8,0.136392
+ref_manhattan_scaled_sliding,task3_drift,eer_slope_per_session,-0.005171
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s3,0.093137
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s4,0.077294
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s5,0.072745
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s6,0.063216
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s7,0.067137
+ref_manhattan_scaled_sliding,task3_drift,eer_mean_s8,0.064941
+ref_manhattan_scaled_static,task3_drift,eer_slope_per_session,0.007898
+ref_manhattan_scaled_static,task3_drift,eer_mean_s3,0.093137
+ref_manhattan_scaled_static,task3_drift,eer_mean_s4,0.095961
+ref_manhattan_scaled_static,task3_drift,eer_mean_s5,0.103569
+ref_manhattan_scaled_static,task3_drift,eer_mean_s6,0.108275
+ref_manhattan_scaled_static,task3_drift,eer_mean_s7,0.122745
+ref_manhattan_scaled_static,task3_drift,eer_mean_s8,0.131412
