@@ -24,7 +24,7 @@ def _identifier():
 
 @st.cache_data
 def _test_predictions():
-    """Demo model's predictions on the whole Task 1 test set (sessions 7-8), for the per-session chart."""
+    """Demo model's predictions on the whole Task 1 test set (sessions 6-7), for the per-session chart."""
     df, feat_cols = load_data()
     ident = _identifier()
     test = df[df.sessionIndex.isin(CFG["TASK1_TEST_SESSIONS"])]
@@ -76,7 +76,7 @@ def _results_section(ident):
     t1 = t1.sort_values("accuracy", ascending=False)
     c1, c2 = st.columns(2)
     with c1:
-        bars = alt.Chart(t1, title="Test accuracy, sessions 7-8 (notebook results)").mark_bar(
+        bars = alt.Chart(t1, title="Test accuracy, sessions 6-7 (notebook results)").mark_bar(
             color=BLUE, cornerRadiusEnd=4).encode(
             x=alt.X("accuracy:Q", title="accuracy", axis=alt.Axis(format="%"), scale=alt.Scale(domain=[0, 1])),
             y=alt.Y("model:N", sort="-x", title=None, axis=alt.Axis(labelLimit=260)),
@@ -92,20 +92,21 @@ def _results_section(ident):
             y=alt.Y("correct:Q", title="accuracy", axis=alt.Axis(format="%"), scale=alt.Scale(zero=False)),
             tooltip=[alt.Tooltip("session:O", title="Session"), alt.Tooltip("correct:Q", title="Accuracy", format=".1%")])
         show_chart(line.properties(height=320))
-        st.caption("Accuracy falls from session 7 to 8 because people's typing keeps drifting away from how they "
-                   "typed in the training sessions.")
+        st.caption("The test sessions sit between the training sessions (1-5 and 8), so the model has seen "
+                   "typing from both before and after them.")
     with st.expander("Table view"):
         show_table(t1.rename(columns={"model": "Model", "accuracy": "Accuracy", "macro_f1": "Macro F1"})
                    .assign(Accuracy=lambda d: d.Accuracy.map(pct), **{"Macro F1": lambda d: d["Macro F1"].round(3)}))
     st.caption(f"The demo uses the 1D-CNN, retrained with the notebook's split and recipe: "
-               f"{pct(ident.info['test_accuracy'])} on sessions 7-8, the same as the notebook. With the paper's split "
-               "(train 1-4, test 5-8) the same model scores 85.7%; see experiments/task1_split_comparison/ in the repo.")
+               f"{pct(ident.info['test_accuracy'])} on sessions 6-7. With the paper's split (train 1-4, test 5-8) the "
+               "same model scores 85.7%, and trained on 1-6 / tested on 7-8 it scores 89.5%; see "
+               "experiments/task1_split_comparison/ in the repo.")
 
 
 def render():
     st.header("Task 1 · Who typed this?")
     st.markdown("**Identification:** given one typing of `.tie5Roanl`, pick which of the 51 users typed it. "
-                "Models train on sessions 1-6 and are tested on sessions 7-8.")
+                "Models train on sessions 1-5 and 8 and are tested on sessions 6-7.")
     if not os.path.exists(MODEL):
         st.warning("Model not found. Run `python scripts/train_demo_identifier.py` from the repo root (about 3 min).")
         return

@@ -16,11 +16,11 @@ st.set_page_config(page_title="Keystroke Dynamics Demo", page_icon="⌨️", lay
 st.title("⌨️ Keystroke Dynamics: Behavioral Biometric Authentication")
 st.markdown("Can we recognise people by **how** they type? 51 people each typed the password `.tie5Roanl` "
             "400 times over 8 sessions ([CMU benchmark](https://www.cs.cmu.edu/~keystroke/), Killourhy & Maxion 2009). "
-            "Models train on earlier sessions and are tested on later ones: identification uses sessions 1-6 / 7-8, "
-            "authentication uses the paper's sessions 1-4 / 5-8.")
+            "Identification trains on sessions 1-5 and 8 and tests on 6-7; authentication uses the paper's split "
+            "(train on sessions 1-4, test on 5-8).")
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Identification accuracy", "89.5%", help="Task 1, 1D-CNN, 51 users; train on sessions 1-6, test on 7-8")
+m1.metric("Identification accuracy", "94.7%", help="Task 1, 1D-CNN, 51 users; train on sessions 1-5 and 8, test on 6-7")
 m2.metric("Best authentication EER", "7.8%", "-1.8 pts vs paper's best (9.6%)", delta_color="inverse",
           help="Task 2, kNN with scaled-Manhattan distance; lower is better")
 m3.metric("Deep authentication EER", "10.0%", help="Task 2, dense autoencoder (LSTM autoencoder: 11.5%)")

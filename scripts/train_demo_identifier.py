@@ -1,8 +1,8 @@
 """Train Person A's 1D-CNN for the demo and save it to models/task1_demo_cnn.pt (about 1.5 MB).
 
 Same split, scaler, architecture and recipe as notebooks/task1_identification.ipynb:
-train on sessions 1-6 (TASK1_TRAIN_SESSIONS), pick the epoch count on session 6 (inner run on sessions 1-5),
-retrain on 1-6, test once on sessions 7-8 (TASK1_TEST_SESSIONS).
+train on sessions 1-5 and 8 (TASK1_TRAIN_SESSIONS), pick the epoch count on session 8 (inner run on sessions 1-5),
+retrain on all six, test once on sessions 6-7 (TASK1_TEST_SESSIONS).
 The notebook's own model is not saved there, and its Random Forest file is too large for GitHub.
 
 Run from the repo root:  python scripts/train_demo_identifier.py   (about 4 min on CPU)

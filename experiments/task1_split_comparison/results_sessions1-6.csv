@@ -1,0 +1,19 @@
+model,task,metric,value
+LogisticRegression,task1_identification,accuracy,0.757843
+LogisticRegression,task1_identification,macro_f1,0.751635
+SVM-RBF,task1_identification,accuracy,0.814118
+SVM-RBF,task1_identification,macro_f1,0.80912
+RandomForest,task1_identification,accuracy,0.869608
+RandomForest,task1_identification,macro_f1,0.862658
+XGBoost,task1_identification,accuracy,0.867647
+XGBoost,task1_identification,macro_f1,0.862709
+MLP,task1_identification,accuracy,0.888431
+MLP,task1_identification,macro_f1,0.884675
+1D-CNN,task1_identification,accuracy,0.89549
+1D-CNN,task1_identification,macro_f1,0.892185
+BiLSTM,task1_identification,accuracy,0.84451
+BiLSTM,task1_identification,macro_f1,0.838407
+LogReg (+derived),task1_identification,accuracy,0.762353
+LogReg (+derived),task1_identification,macro_f1,0.756733
+RandomForest (+derived),task1_identification,accuracy,0.859216
+RandomForest (+derived),task1_identification,macro_f1,0.852584
